@@ -1,16 +1,15 @@
 import crypto from 'node:crypto';
 import { SignJWT, compactVerify, decodeProtectedHeader } from 'jose';
-
 import {
   ALG,
-  FORBIDDEN_KEYS,
-  PROTECTED_CLAIMS,
   env,
   logger,
   getSigningKey,
   getKeyId,
-  resolveVerificationKey,
-} from './config.js';
+  resolveVerificationKey
+} from '../config/jwtkeys.config.js';
+import { FORBIDDEN_KEYS ,  PROTECTED_CLAIMS} from '../constants/jwt.constants.js';
+
 
 export class AppError extends Error {
   constructor(message, { code = 'INTERNAL_ERROR', httpStatus = 500, details = null, expose = true } = {}) {

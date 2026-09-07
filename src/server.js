@@ -1,5 +1,6 @@
-import { env, logger, initKeys } from './config.js';
+
 import { createApp } from './app.js';
+import { logger,initKeys,env } from './config/jwtkeys.config.js';
 
 async function bootstrap() {
   await initKeys();
