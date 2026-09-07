@@ -1,0 +1,22 @@
+node_modules/
+npm-debug.log*
+
+# Environment / secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Cryptographic key material — NEVER commit private keys
+src/keys/*.pem
+src/keys/*.jwk
+src/keys/*.json
+keys/
+*.p12
+*.pfx
+
+# Logs (may contain request metadata)
+logs/
+*.log
+
+coverage/
+.DS_Store

@@ -1,0 +1,205 @@
+{
+  "info": {
+    "name": "JWT API",
+    "description": "JWT create/verify API (ES256).\n\nSetup:\n1. Import this collection.\n2. Set the collection variables `baseUrl` and `accessToken`.\n3. Run **Create JWT** first - it stores the issued token in `{{jwt}}`, which Verify JWT reuses.\n\nSuggested run order:\n  Health -> Create JWT -> Verify JWT -> Negative - reserved claim injection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "dev-token-aiu-1",
+      "type": "string"
+    },
+    {
+      "key": "aiuId",
+      "value": "AIU_ID",
+      "type": "string"
+    },
+    {
+      "key": "jwt",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Liveness probe. Unauthenticated."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('reports success', () => pm.expect(pm.response.json().status).to.eql('success'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create JWT",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject\": \"{{aiuId}}\",\n  \"audience\": \"agristack-api\",\n  \"claims\": {\n    \"role\": \"AIU\",\n    \"level\": 3\n  },\n  \"data\": {\n    \"anything\": \"you like\"\n  },\n  \"expiresIn\": 3600\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jwt/create",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jwt",
+            "create"
+          ]
+        },
+        "description": "Standard ES256 JWT. Every claim is readable by anyone holding the token. Signed with the same issuer key."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const d = pm.response.json().data;",
+              "pm.collectionVariables.set('jwt', d.token);",
+              "pm.test('typ is JWT', () => {",
+              "  const h = JSON.parse(atob(d.token.split('.')[0].replace(/-/g,'+').replace(/_/g,'/')));",
+              "  pm.expect(h.typ).to.eql('JWT');",
+              "  pm.expect(h.alg).to.eql('ES256');",
+              "});",
+              "pm.test('has a jti', () => pm.expect(d.token_id).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verify JWT",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{jwt}}\",\n  \"expectedAudience\": \"agristack-api\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jwt/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jwt",
+            "verify"
+          ]
+        },
+        "description": "Validates signature, alg, typ, kid, issuer, exp, iat, nbf and optionally aud/sub."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const d = pm.response.json().data;",
+              "pm.test('valid', () => pm.expect(d.valid).to.be.true);",
+              "pm.test('custom claims returned', () => pm.expect(d.claims.role).to.eql('AIU'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Negative - reserved claim injection",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"claims\": { \"exp\": 9999999999, \"iss\": \"https://attacker.example\" }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jwt/create",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jwt",
+            "create"
+          ]
+        },
+        "description": "A caller must not be able to extend their own token lifetime or change the issuer. Rejected, not silently stripped."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
