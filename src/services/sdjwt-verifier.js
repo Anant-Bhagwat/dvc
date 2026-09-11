@@ -1,5 +1,10 @@
 
+// import {
+//     jwtVerify,
+// } from 'jose';
+
 import {
+    importJWK,
     jwtVerify,
 } from 'jose';
 import crypto from 'node:crypto';
@@ -296,9 +301,129 @@ function validatePayload(payload) {
     }
 }
 
-export async function verifySdJwt(
+async function verifyKeyBindingJwt({
+    kbJwt,
     sdJwt,
-) {
+    holderJwk,
+    expectedAudience,
+    expectedNonce,
+}) {
+    if (
+        typeof kbJwt !== 'string' ||
+        kbJwt.length === 0
+    ) {
+        throw new Error(
+            'KB-JWT is required',
+        );
+    }
+
+    if (
+        !holderJwk ||
+        typeof holderJwk !== 'object'
+    ) {
+        throw new Error(
+            'Holder public JWK is missing',
+        );
+    }
+
+    if (
+        typeof expectedAudience !== 'string' ||
+        expectedAudience.length === 0
+    ) {
+        throw new Error(
+            'Expected audience is required',
+        );
+    }
+
+    if (
+        typeof expectedNonce !== 'string' ||
+        expectedNonce.length === 0
+    ) {
+        throw new Error(
+            'Expected nonce is required',
+        );
+    }
+
+    const holderPublicKey =
+        await importJWK(
+            holderJwk,
+            'ES256',
+        );
+
+    const verification =
+        await jwtVerify(
+            kbJwt,
+            holderPublicKey,
+            {
+                algorithms: [
+                    'ES256',
+                ],
+                audience:
+                    expectedAudience,
+            },
+        );
+
+    if (
+        verification.protectedHeader.typ !==
+        'kb+jwt'
+    ) {
+        throw new Error(
+            `Unexpected KB-JWT type: ` +
+            `${verification.protectedHeader.typ}`,
+        );
+    }
+
+    if (
+        verification.protectedHeader.alg !==
+        'ES256'
+    ) {
+        throw new Error(
+            `Unexpected KB-JWT algorithm: ` +
+            `${verification.protectedHeader.alg}`,
+        );
+    }
+
+    if (
+        verification.payload.nonce !==
+        expectedNonce
+    ) {
+        throw new Error(
+            'KB-JWT nonce mismatch',
+        );
+    }
+
+    const calculatedSdHash =
+        crypto
+            .createHash('sha256')
+            .update(
+                Buffer.from(sdJwt, 'utf8'),
+            )
+            .digest('base64url');
+
+    if (
+        verification.payload.sd_hash !==
+        calculatedSdHash
+    ) {
+        throw new Error(
+            'KB-JWT sd_hash does not match the presented SD-JWT',
+        );
+    }
+
+    return Object.freeze({
+        protectedHeader:
+            verification.protectedHeader,
+
+        payload:
+            verification.payload,
+    });
+}
+
+export async function verifySdJwt({
+    sdJwt,
+    kbJwt,
+    expectedAudience,
+    expectedNonce,
+}) {
     const {
         signedJwt,
         disclosures,
@@ -328,6 +453,19 @@ export async function verifySdJwt(
     validatePayload(
         verification.payload,
     );
+    const holderJwk =
+        verification.payload[
+            SDJWT_CLAIMS.HOLDER_BINDING
+        ]?.jwk;
+
+    const keyBinding =
+        await verifyKeyBindingJwt({
+            kbJwt,
+            sdJwt,
+            holderJwk,
+            expectedAudience,
+            expectedNonce,
+        });
 
     const verifiedDisclosures =
         verifyDisclosureDigests(
@@ -359,6 +497,13 @@ export async function verifySdJwt(
 
         disclosures:
             verifiedDisclosures,
+        keyBinding: {
+            valid: true,
+            protectedHeader:
+                keyBinding.protectedHeader,
+            payload:
+                keyBinding.payload,
+        },
     });
 }
 

@@ -80,11 +80,87 @@ export const sdJwtCreateSchema = z
   })
   .strict();
 
+// export const sdJwtVerifySchema = z
+//   .object({
+//     sdJwt: z
+//       .string()
+//       .min(1, "sdJwt is required")
+//       .max(256 * 1024, "sdJwt must not exceed 256 KB"),
+//   })
+//   .strict();
+
 export const sdJwtVerifySchema = z
   .object({
     sdJwt: z
       .string()
-      .min(1, "sdJwt is required")
-      .max(256 * 1024, "sdJwt must not exceed 256 KB"),
+      .min(1, 'sdJwt is required')
+      .max(
+        256 * 1024,
+        'sdJwt must not exceed 256 KB',
+      ),
+
+    kbJwt: z
+      .string()
+      .min(1, 'kbJwt is required')
+      .max(
+        16 * 1024,
+        'kbJwt must not exceed 16 KB',
+      ),
+
+    audience: z
+      .string()
+      .min(1, 'audience is required')
+      .max(
+        256,
+        'audience must not exceed 256 characters',
+      ),
+
+    nonce: z
+      .string()
+      .min(1, 'nonce is required')
+      .max(
+        256,
+        'nonce must not exceed 256 characters',
+      ),
+  })
+  .strict();
+
+
+export const sdJwtShareSchema = z
+  .object({
+    credentialId: z
+      .string()
+      .min(1, 'credentialId is required')
+      .max(256, 'credentialId must not exceed 256 characters'),
+
+    holderJwk: holderJwkSchema,
+
+    claims: z
+      .record(claimKey, jsonValue)
+      .refine(
+        (claims) => Object.keys(claims).length > 0,
+        {
+          message:
+            'At least one claim must be selected for sharing',
+        },
+      )
+      .refine(
+        (claims) => Object.keys(claims).length <= 100,
+        {
+          message:
+            'At most 100 claims can be selected for sharing',
+        },
+      )
+      .refine(
+        (claims) =>
+          Buffer.byteLength(
+            JSON.stringify(claims),
+            'utf8',
+          ) <= 64 * 1024,
+        {
+          message:
+            'Selected claims must not exceed 64 KB',
+        },
+      ),
   })
   .strict();
