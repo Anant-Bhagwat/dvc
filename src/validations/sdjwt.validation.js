@@ -49,46 +49,6 @@ const holderJwkSchema = z
     },
   );
 
-export const sdJwtCreateSchema = z
-  .object({
-    credentialId: z.string().min(1).max(256),
-
-    expiresIn: z.coerce
-      .number()
-      .int()
-      .min(60, "expiresIn must be at least 60 seconds")
-      .max(365 * 24 * 60 * 60, "expiresIn must not exceed one year")
-      .optional(),
-
-    holderJwk: holderJwkSchema,
-
-    claims: z
-      .record(claimKey, jsonValue)
-      .refine((claims) => Object.keys(claims).length > 0, {
-        message: "At least one selectively disclosable claim is required",
-      })
-      .refine((claims) => Object.keys(claims).length <= 100, {
-        message: "At most 100 selectively disclosable claims are allowed",
-      })
-      .refine(
-        (claims) =>
-          Buffer.byteLength(JSON.stringify(claims), "utf8") <= 64 * 1024,
-        {
-          message: "Serialized claims must not exceed 64 KB",
-        },
-      ),
-  })
-  .strict();
-
-// export const sdJwtVerifySchema = z
-//   .object({
-//     sdJwt: z
-//       .string()
-//       .min(1, "sdJwt is required")
-//       .max(256 * 1024, "sdJwt must not exceed 256 KB"),
-//   })
-//   .strict();
-
 export const sdJwtVerifySchema = z
   .object({
     sdJwt: z

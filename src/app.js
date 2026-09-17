@@ -8,7 +8,6 @@ import { correlationId } from "./middleware/correlation-id.js";
 
 import { notFoundHandler, errorHandler } from "./middleware/error-handler.js";
 
-import jwtRoutes from "./routes/jwt.routes.js";
 import sdjwtRoutes from "./routes/sdjwt.routes.js";
 
 export function createApp() {
@@ -69,7 +68,6 @@ export function createApp() {
     }),
   );
 
-  app.use("/api/v1/jwt", jwtRoutes);
   app.use("/api/v1/sdjwt", sdjwtRoutes);
 
   app.get("/health", (_req, res) => {

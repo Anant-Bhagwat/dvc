@@ -4,7 +4,7 @@ import nodeCrypto from 'node:crypto';
 import 'dotenv/config';
 import pino from 'pino';
 import { importPKCS8, importJWK } from 'jose';
-import { parsed ,claimName,csv,boolish, jwtCreateSchema} from '../validations/jwt.validation.js';
+import { parsed } from '../validations/env.validation.js';
 
 export const ALG = 'ES256';
 
@@ -22,29 +22,11 @@ const fail = (message) => {
 
 const config = parsed.data;
 
-if (config.JWT_MAX_EXPIRY < config.JWT_DEFAULT_EXPIRY) {
-    fail('JWT_MAX_EXPIRY must be >= JWT_DEFAULT_EXPIRY');
-}
 if (!config.JWT_PRIVATE_KEY && !config.JWT_PRIVATE_KEY_PATH) {
     fail('provide JWT_PRIVATE_KEY or JWT_PRIVATE_KEY_PATH (run `npm run keys:generate`)');
 }
-if (config.JWT_TRUSTED_ISSUERS.length === 0) {
-    config.JWT_TRUSTED_ISSUERS = [config.JWT_ISSUER];
-}
-if (config.NODE_ENV === 'production') {
-    if (!config.AUTH_ENABLED) fail('AUTH_ENABLED must be true in production');
-    if (config.API_ACCESS_TOKENS.length === 0) fail('API_ACCESS_TOKENS is empty while auth is enabled');
-    if (config.API_ACCESS_TOKENS.some((t) => t.length < 32)) {
-        fail('every API_ACCESS_TOKENS entry must be at least 32 characters in production');
-    }
-    if (new Set(config.API_ACCESS_TOKENS).size !== config.API_ACCESS_TOKENS.length) {
-        fail('API_ACCESS_TOKENS contains duplicate entries');
-    }
-}
 
 export const env = Object.freeze(config);
-
-export const jwtCreate = jwtCreateSchema(env.JWT_MAX_EXPIRY);
 
 export const logger = pino({
     level: env.LOG_LEVEL,

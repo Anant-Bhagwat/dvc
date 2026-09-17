@@ -1,10 +1,18 @@
 import {
-    AppError,
-} from '../services/jwt.js';
-
-import {
     logger,
 } from '../config/jwtkeys.config.js';
+
+export class AppError extends Error {
+    constructor(message, { code = 'INTERNAL_ERROR', httpStatus = 500, details = null, expose = true } = {}) {
+        super(message);
+        this.name = this.constructor.name;
+        this.code = code;
+        this.httpStatus = httpStatus;
+        this.details = details;
+        this.expose = expose;
+        Error.captureStackTrace?.(this, this.constructor);
+    }
+}
 
 export function notFoundHandler(req, res) {
     res.status(404).json({

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { CORRELATION_ID_RE } from '../validations/jwt.validation.js';
+const CORRELATION_ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 export function correlationId(req, res, next) {
     const supplied = req.get('x-correlation-id');
